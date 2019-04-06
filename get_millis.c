@@ -12,10 +12,7 @@ void millis_init()
     // CTC mode, Clock/8
     TCCR1B |= (1 << WGM12) | (1 << CS11);
     
-    // Load the high byte, then the low byte
-    // into the output compare
-    OCR1AH = (CTC_MATCH_OVERFLOW >> 8);
-    OCR1AL = CTC_MATCH_OVERFLOW;
+    OCR1A = CTC_MATCH_OVERFLOW;
     sei();
     
     // Enable the compare match interrupt
