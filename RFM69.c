@@ -38,7 +38,9 @@
 
 
 #include <avr/io.h>
+#include <stdio.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 #include "spi.h"
 #include "RFM69registers.h"
 #include "RFM69.h"
@@ -66,8 +68,8 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
     {
         /* 0x01 */ { REG_OPMODE, RF_OPMODE_SEQUENCER_ON | RF_OPMODE_LISTEN_OFF | RF_OPMODE_STANDBY },
         /* 0x02 */ { REG_DATAMODUL, RF_DATAMODUL_DATAMODE_PACKET | RF_DATAMODUL_MODULATIONTYPE_FSK | RF_DATAMODUL_MODULATIONSHAPING_00 }, // no shaping
-        /* 0x03 */ { REG_BITRATEMSB, RF_BITRATEMSB_9600}, // default: 4.8 KBPS
-        /* 0x04 */ { REG_BITRATELSB, RF_BITRATELSB_9600},
+        /* 0x03 */ { REG_BITRATEMSB, RF_BITRATEMSB_55555}, // default: 4.8 KBPS
+        /* 0x04 */ { REG_BITRATELSB, RF_BITRATELSB_55555},
         /* 0x05 */ { REG_FDEVMSB, RF_FDEVMSB_50000}, // default: 5KHz, (FDEV + BitRate / 2 <= 500KHz)
         /* 0x06 */ { REG_FDEVLSB, RF_FDEVLSB_50000},
 
@@ -86,15 +88,16 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
         // +17dBm formula: Pout = -14 + OutputPower (with PA1 and PA2)**
         // +20dBm formula: Pout = -11 + OutputPower (with PA1 and PA2)** and high power PA settings (section 3.3.7 in datasheet)
         ///* 0x11 */ { REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | RF_PALEVEL_OUTPUTPOWER_11111},
+        /* 0x11 */ { REG_PALEVEL, RF_PALEVEL_PA0_ON | RF_PALEVEL_PA1_OFF | RF_PALEVEL_PA2_OFF | RF_PALEVEL_OUTPUTPOWER_11111},
         ///* 0x13 */ { REG_OCP, RF_OCP_ON | RF_OCP_TRIM_95 }, // over current protection (default is 95mA)
 
         // RXBW defaults are { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_5} (RxBw: 10.4KHz)
         /* 0x19 */ { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_16 | RF_RXBW_EXP_2 }, // (BitRate < 2 * RxBw)
         //for BR-19200: /* 0x19 */ { REG_RXBW, RF_RXBW_DCCFREQ_010 | RF_RXBW_MANT_24 | RF_RXBW_EXP_3 },
         /* 0x25 */ { REG_DIOMAPPING1, RF_DIOMAPPING1_DIO0_01 }, // DIO0 is the only IRQ we're using
-        /* 0x26 */ { REG_DIOMAPPING2, RF_DIOMAPPING2_CLKOUT_OFF }, // DIO5 ClkOut disable for power saving
+        /* 0x26 */ { REG_DIOMAPPING2, 0x5 }, // DIO5 ClkOut disable for power saving
         /* 0x28 */ { REG_IRQFLAGS2, RF_IRQFLAGS2_FIFOOVERRUN }, // writing to this bit ensures that the FIFO & status flags are reset
-        /* 0x29 */ { REG_RSSITHRESH, 220 }, // must be set to dBm = (-Sensitivity / 2), default is 0xE4 = 228 so -114dBm
+        /* 0x29 */ { REG_RSSITHRESH, 228 }, // must be set to dBm = (-Sensitivity / 2), default is 0xE4 = 228 so -114dBm
         ///* 0x2D */ { REG_PREAMBLELSB, RF_PREAMBLESIZE_LSB_VALUE } // default 3 preamble bytes 0xAAAAAA
         /* 0x2E */ { REG_SYNCCONFIG, RF_SYNC_ON | RF_SYNC_FIFOFILL_AUTO | RF_SYNC_SIZE_2 | RF_SYNC_TOL_0 },
         /* 0x2F */ { REG_SYNCVALUE1, 0x2D },      // attempt to make this compatible with sync1 byte of RFM12B lib
@@ -108,6 +111,15 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
         /* 0x6F */ { REG_TESTDAGC, RF_DAGC_IMPROVED_LOWBETA0 }, // run DAGC continuously in RX mode for Fading Margin Improvement, recommended default for AfcLowBetaOn=0
         {255, 0}
     };
+
+    RST_PORT &= ~(1 << RST_PIN);
+    RST_DDR  |= (1 << RST_PIN);
+    RST_PORT |= (1 << RST_PIN);
+    _delay_ms(6);
+    RST_PORT &= ~(1 << RST_PIN);
+    RST_DDR  &= ~(1 << RST_PIN);
+
+
     
     spi_init();                // spi initialize
     //DDRC |= 1<<PC6;          // temporary for testing LED output
@@ -116,10 +128,12 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
     INT_DDR &= ~(1<<INT_PIN_n);  // setting interrupt pin input. no problem if not given
     INT_PORT &= ~(1<<INT_PIN_n); // setting pull down. because rising will cause interrupt. external pull down is needed.
     
+
     while (readReg(REG_SYNCVALUE1) != 0xaa)
     {
         writeReg(REG_SYNCVALUE1, 0xaa);
     }
+    printf("TU\n");
 
     while (readReg(REG_SYNCVALUE1) != 0x55)
     {

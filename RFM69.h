@@ -45,7 +45,7 @@
 #if defined (__AVR_ATmega328__) || defined (__AVR_ATmega328P__)
 #   define SS_DDR                DDRB
 #   define SS_PORT              PORTB
-#   define SS_PIN                 PB2
+#   define SS_PIN                 PB0
 
 #   define INT_DDR               DDRD
 #   define INT_PORT             PORTD
@@ -56,6 +56,10 @@
 #   define ISCn0                ISC00
 #   define ISCn1                ISC01
 #   define INT_VECT         INT0_vect
+
+#   define RST_DDR               DDRB
+#   define RST_PORT             PORTB
+#   define RST_PIN                PB1
 
 #   define EICRn               EICRA
 
