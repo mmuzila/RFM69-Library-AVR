@@ -102,7 +102,7 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
         /* 0x2E */ { REG_SYNCCONFIG, RF_SYNC_ON | RF_SYNC_FIFOFILL_AUTO | RF_SYNC_SIZE_2 | RF_SYNC_TOL_0 },
         /* 0x2F */ { REG_SYNCVALUE1, 0x2D },      // attempt to make this compatible with sync1 byte of RFM12B lib
         /* 0x30 */ { REG_SYNCVALUE2, networkID }, // NETWORK ID
-        /* 0x37 */ { REG_PACKETCONFIG1, RF_PACKET1_FORMAT_VARIABLE | RF_PACKET1_DCFREE_OFF | RF_PACKET1_CRC_ON | RF_PACKET1_CRCAUTOCLEAR_ON | RF_PACKET1_ADRSFILTERING_OFF },
+        /* 0x37 */ { REG_PACKETCONFIG1, RF_PACKET1_FORMAT_VARIABLE | RF_PACKET1_DCFREE_OFF | RF_PACKET1_CRC_ON | RF_PACKET1_CRCAUTOCLEAR_ON | RF_PACKET1_ADRSFILTERING_NODE },
         /* 0x38 */ { REG_PAYLOADLENGTH, 66 }, // in variable length mode: the max frame size, not used in TX
         ///* 0x39 */ { REG_NODEADRS, nodeID }, // turned off because we're not using address filtering
         /* 0x3C */ { REG_FIFOTHRESH, RF_FIFOTHRESH_TXSTART_FIFONOTEMPTY | RF_FIFOTHRESH_VALUE }, // TX on FIFO not empty
@@ -133,7 +133,6 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
     {
         writeReg(REG_SYNCVALUE1, 0xaa);
     }
-    printf("TU\n");
 
     while (readReg(REG_SYNCVALUE1) != 0x55)
     {
@@ -141,7 +140,9 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
     }
 
     for (uint8_t i = 0; CONFIG[i][0] != 255; i++)
+    {
         writeReg(CONFIG[i][0], CONFIG[i][1]);
+    }
 
     // Encryption is persistent between resets and can trip you up during debugging.
     // Disable it during initialization so we always start from a known state.
@@ -165,6 +166,7 @@ void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID)
 // set this node's address
 void setAddress(uint8_t addr)
 {
+    address = addr;
     writeReg(REG_NODEADRS, addr);
 }
 
@@ -280,6 +282,7 @@ void writeReg(uint8_t addr, uint8_t value)
     select();
     spi_fast_shift(addr | 0x80);
     spi_fast_shift(value);
+    _delay_us(1000);
     unselect();
 }
 
@@ -442,7 +445,14 @@ uint8_t sendWithRetry(uint8_t toAddress, const void* buffer, uint8_t bufferSize,
 uint8_t ACKReceived(uint8_t fromNodeID)
 {
     if (receiveDone())
+    {
+#ifdef DEBUG
+        printf("ACK received\n");
+        printf("  SENDERID%d\n", SENDERID);
+        printf("  fromNodeID%d\n", fromNodeID);
+#endif
         return (SENDERID == fromNodeID || fromNodeID == RF69_BROADCAST_ADDR) && ACK_RECEIVED;
+    }
     return 0;
 }
 
@@ -511,6 +521,16 @@ void unselect()
 {
     SS_PORT |= 1<<SS_PIN;
     maybeInterrupts();
+}
+
+uint8_t getDatalen()
+{
+    return DATALEN;
+}
+
+uint8_t * getData()
+{
+    return DATA;
 }
 
 // Interrupt Service Routine

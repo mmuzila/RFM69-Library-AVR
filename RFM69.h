@@ -45,7 +45,7 @@
 #if defined (__AVR_ATmega328__) || defined (__AVR_ATmega328P__)
 #   define SS_DDR                DDRB
 #   define SS_PORT              PORTB
-#   define SS_PIN                 PB0
+#   define SS_PIN                 PB1
 
 #   define INT_DDR               DDRD
 #   define INT_PORT             PORTD
@@ -59,7 +59,7 @@
 
 #   define RST_DDR               DDRB
 #   define RST_PORT             PORTB
-#   define RST_PIN                PB1
+#   define RST_PIN                PB0
 
 #   define EICRn               EICRA
 
@@ -102,6 +102,7 @@
 
 // Global Variables
 volatile uint8_t DATA[RF69_MAX_DATA_LEN];  // recv/xmit buf, including header & crc bytes
+volatile uint8_t DATALEN;
 
 // Function Declerations
 void rfm69_init(uint16_t freqBand, uint8_t nodeID, uint8_t networkID);
@@ -134,6 +135,8 @@ void maybeInterrupts();
 void select();
 void unselect();
 uint8_t receiveDone();
+uint8_t getDatalen();
+uint8_t * getData();
 
 #endif
 
